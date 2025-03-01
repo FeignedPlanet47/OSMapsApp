@@ -20,8 +20,6 @@ interface GraphHopperService {
     fun getRoute(
         @Query("point") points: List<String>,
         @Query("vehicle") vehicle: String = "car",
-        @Query("pass_through") passThrough: Boolean = true,
-        @Query("ch.disable") chDisable: Boolean = true,
         @Query("key") apiKey: String
     ): Call<GraphHopperResponse>
 }

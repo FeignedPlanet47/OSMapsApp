@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.util.findImplementationFromInterface
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -57,4 +59,5 @@ dependencies {
     implementation(libs.logging.interceptor)
     implementation(libs.slf4j.android)
     implementation(libs.play.services.location)
+    implementation (libs.kotlinx.coroutines.core)
 }
