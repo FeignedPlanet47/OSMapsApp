@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/startPointInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Начальная точка"
+        android:minHeight="48dp" />
+
+    <EditText
+        android:id="@+id/endPointInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Конечная точка"
+        android:minHeight="48dp" />
+
+    <EditText
+        android:id="@+id/stopsInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Точки остановки (через точку с запятой)"
+        android:minHeight="48dp" />
+
+    <Button
+        android:id="@+id/calculateRouteButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Найти маршрут" />
+
+    <org.osmdroid.views.MapView
+        android:id="@+id/map"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+</LinearLayout>
