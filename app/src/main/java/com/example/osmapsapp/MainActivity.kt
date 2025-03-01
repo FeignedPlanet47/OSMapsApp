@@ -4,163 +4,172 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.example.osmapsapp.Models.GraphHopperResponse
-import com.example.osmapsapp.Models.NominatimResponse
+import androidx.lifecycle.lifecycleScope
 import com.example.osmapsapp.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
 import org.osmdroid.config.Configuration
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
     private lateinit var map: MapView
-
-    private val nominatimService: NominatimService by lazy {
-        Retrofit.Builder()
-            .baseUrl("https://nominatim.openstreetmap.org/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(NominatimService::class.java)
-    }
+    private lateinit var binding: ActivityMainBinding
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         Configuration.getInstance().userAgentValue = packageName
-
         map = binding.map
-
-        map.setTileSource(TileSourceFactory.MAPNIK)
-        map.controller.setZoom(12.0)
-        map.controller.setCenter(GeoPoint(55.7558, 37.6176))
-
+        map.setMultiTouchControls(true)
         binding.calculateRouteButton.setOnClickListener {
             val start = binding.startPointInput.text.toString()
             val end = binding.endPointInput.text.toString()
-            val stops = binding.stopsInput.text.toString().split(";").map { it.trim() }
-
-            if (start.isNotEmpty() && end.isNotEmpty()) {
-                calculateAndDisplayRoute(start, end, stops)
-            } else {
-                Toast.makeText(this, "Начальная и конечная точки обязательны",Toast.LENGTH_SHORT).show()
+            val maxDistance = binding.maxDistanceInput.text.toString().toDoubleOrNull()
+            if (start.isBlank() || end.isBlank() || maxDistance == null) {
+                Toast.makeText(this, "Заполните все поля корректно", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
+            lifecycleScope.launch {
+                calculateRouteWithStops(start, end, maxDistance)
+            }
+        }
+        binding.clearRouteButton.setOnClickListener {
+            map.overlays.clear()
+            map.invalidate()
         }
     }
 
-    private fun calculateAndDisplayRoute(start: String, end: String, stops: List<String>) {
-        val points = mutableListOf<GeoPoint>()
-        val allPoints = listOf(start) + stops + listOf(end)
+    private suspend fun calculateRouteWithStops(start: String, end: String, maxDistanceKm: Double) {
+        val startTime = System.currentTimeMillis()
+        try {
+            val startCoords = geocode(start) ?: run {
+                Toast.makeText(this, "Не удалось определить координаты начальной точки", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val endCoords = geocode(end) ?: run {
+                Toast.makeText(this, "Не удалось определить координаты конечной точки", Toast.LENGTH_SHORT).show()
+                return
+            }
 
-        allPoints.forEach { point ->
-            nominatimService.search(point).enqueue(object : Callback<List<NominatimResponse>> {
-                override fun onResponse(
-                    call: Call<List<NominatimResponse>>,
-                    response: Response<List<NominatimResponse>>
-                ) {
-                    if (response.isSuccessful && response.body()?.isNotEmpty() == true) {
-                        val location = response.body()!![0]
-                        val geoPoint = GeoPoint(location.lat.toDouble(), location.lon.toDouble())
-                        points.add(geoPoint)
+            val threshold = maxDistanceKm * 1000
+            val totalDistance = startCoords.distanceToAsDouble(endCoords)
+            val numStops = (totalDistance / threshold).toInt()
 
-                        if (points.size == allPoints.size) {
-                            getRouteFromGraphHopper(points)
-                        }
-                    } else {
-                        Log.e("NominatimError", "Не удалось найти координаты для точки: $point")
-                    }
-                }
+            val stops = mutableListOf(startCoords)
 
-                override fun onFailure(call: Call<List<NominatimResponse>>, t: Throwable) {
-                    Log.e("NominatimError", "Ошибка при запросе к Nominatim: ${t.message}")
-                }
-            })
+            for (i in 1..numStops) {
+                val fraction = i * threshold / totalDistance
+                val pointOnLine = interpolateGeoPoint(startCoords, endCoords, fraction)
+                val poi = getNearestPOI(pointOnLine, maxDistanceKm) ?: pointOnLine
+                stops.add(poi)
+            }
+
+            stops.add(endCoords)
+
+            val finalRoute = mutableListOf<GeoPoint>()
+            for (i in 0 until stops.size - 1) {
+                val segment = getRoute(stops[i], stops[i + 1])
+                finalRoute.addAll(segment)
+            }
+
+            val polyline = Polyline().apply {
+                setPoints(finalRoute)
+                color = 0xFFFF0000.toInt()
+                width = 5f
+            }
+            map.overlays.add(polyline)
+
+            for (stop in stops) {
+                val marker = Marker(map)
+                marker.position = stop
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                marker.title = "Остановка"
+                map.overlays.add(marker)
+            }
+
+            map.controller.setZoom(8.0)
+            map.controller.setCenter(startCoords)
+            map.invalidate()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+        } finally {
+            val endTime = System.currentTimeMillis()
+            val elapsedTime = endTime - startTime
+            Log.d("RouteCalculationTime", "Время выполнения алгоритма: ${elapsedTime} мс")
         }
     }
 
-    private fun getRouteFromGraphHopper(points: List<GeoPoint>) {
-        val coordinates = points.map { "${it.latitude},${it.longitude}" }
-        val apiKey = "bd4344ed-3e9b-4c95-b321-998ef0e8b23b"
-        graphHopperService.getRoute(
-            points = coordinates,
-            passThrough = true,
-            chDisable = true,
-            apiKey = apiKey
-        ).enqueue(object : Callback<GraphHopperResponse> {
-            override fun onResponse(call: Call<GraphHopperResponse>, response: Response<GraphHopperResponse>) {
-                if (response.isSuccessful && response.body() != null) {
-                    val route = response.body()!!.paths[0]
-                    val polyline = decodePolyline(route.points)
-                    displayRouteOnMap(polyline)
-                } else {
-                    Log.e("GraphHopperError", "Не удалось получить маршрут от GraphHopper. Ответ: ${response.errorBody()?.string()}")
-                }
-            }
-
-            override fun onFailure(call: Call<GraphHopperResponse>, t: Throwable) {
-                Log.e("GraphHopperError", "Ошибка при запросе к GraphHopper: ${t.message}")
-            }
-        })
+    private fun interpolateGeoPoint(start: GeoPoint, end: GeoPoint, fraction: Double): GeoPoint {
+        val lat = start.latitude + (end.latitude - start.latitude) * fraction
+        val lon = start.longitude + (end.longitude - start.longitude) * fraction
+        return GeoPoint(lat, lon)
     }
 
-    private fun decodePolyline(encodedPolyline: String): List<GeoPoint> {
-        val decodedPoints = mutableListOf<GeoPoint>()
-        var currentIndex = 0
-        val polylineLength = encodedPolyline.length
-        var currentLatitude = 0
-        var currentLongitude = 0
 
-        while (currentIndex < polylineLength) {
-            var byte: Int
-            var shift = 0
-            var result = 0
-
-            do {
-                byte = encodedPolyline[currentIndex++].code - 63
-                result = result or (byte and 0x1f shl shift)
-                shift += 5
-            } while (byte >= 0x20)
-
-            val deltaLatitude = if (result and 1 != 0) (result shr 1).inv() else result shr 1
-            currentLatitude += deltaLatitude
-
-            shift = 0
-            result = 0
-
-            do {
-                byte = encodedPolyline[currentIndex++].code - 63
-                result = result or (byte and 0x1f shl shift)
-                shift += 5
-            } while (byte >= 0x20)
-
-            val deltaLongitude = if (result and 1 != 0) (result shr 1).inv() else result shr 1
-            currentLongitude += deltaLongitude
-
-            val point = GeoPoint(currentLatitude / 1E5, currentLongitude / 1E5)
-            decodedPoints.add(point)
+    private suspend fun getNearestPOI(location: GeoPoint, maxDistanceKm: Double): GeoPoint? = withContext(Dispatchers.IO) {
+        var retries = 3
+        while (retries > 0) {
+            try {
+                val query = "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[amenity~\"fuel|restaurant|cafe|hotel\"];out 1;"
+                val url = "https://overpass-api.de/api/interpreter?data=" + URLEncoder.encode(query, "UTF-8")
+                val request = Request.Builder().url(url).build()
+                val response = client.newCall(request).execute()
+                val body = response.body?.string() ?: return@withContext null
+                val elements = JSONObject(body).getJSONArray("elements")
+                if (elements.length() == 0) return@withContext null
+                val obj = elements.getJSONObject(0)
+                return@withContext GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"))
+            } catch (e: Exception) {
+                retries--
+                if (retries == 0) return@withContext null
+                delay(1000)
+            }
         }
-
-        Log.d("Polyline", "Декодировано точек: ${decodedPoints.size}")
-        return decodedPoints
+        null
     }
 
-    private fun displayRouteOnMap(route: List<GeoPoint>) {
-        map.overlays.clear()
-
-        val polyline = Polyline()
-        polyline.setPoints(route)
-        map.overlays.add(polyline)
-
-        map.invalidate()
+    private suspend fun geocode(query: String): GeoPoint? = withContext(Dispatchers.IO) {
+        val url = "https://nominatim.openstreetmap.org/search?format=json&q=" + URLEncoder.encode(query, "UTF-8")
+        val request = Request.Builder().url(url).header("User-Agent", "RouteApp/1.0").build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: return@withContext null
+        val array = JSONObject("{\"results\":$body}").getJSONArray("results")
+        if (array.length() == 0) return@withContext null
+        val obj = array.getJSONObject(0)
+        GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"))
     }
 
+    private suspend fun getRoute(start: GeoPoint, end: GeoPoint): List<GeoPoint> = withContext(Dispatchers.IO) {
+        val url = "http://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson"
+        val request = Request.Builder().url(url).build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string() ?: return@withContext emptyList()
+        val coords = JSONObject(body).getJSONArray("routes")
+            .getJSONObject(0).getJSONObject("geometry")
+            .getJSONArray("coordinates")
+        val list = mutableListOf<GeoPoint>()
+        for (i in 0 until coords.length()) {
+            val point = coords.getJSONArray(i)
+            list.add(GeoPoint(point.getDouble(1), point.getDouble(0)))
+        }
+        list
+    }
 }
