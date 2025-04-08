@@ -2,7 +2,9 @@ package com.example.osmapsapp
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.osmapsapp.databinding.ActivityMainBinding
@@ -30,6 +32,19 @@ class MainActivity : AppCompatActivity() {
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .build()
+    private val poiCategories = listOf(
+        "Заправка" to "amenity=fuel",
+        "Кафе" to "amenity=cafe",
+        "Ресторан" to "amenity=restaurant",
+        "Отель" to "tourism=hotel",
+        "Кемпинг" to "tourism=camp_site",
+        "Возле воды" to "natural~\"water|lake|river\"",
+        "В лесу" to "natural~\"wood|forest\"",
+        "Достопримечательность" to "tourism~\"attraction|viewpoint\"",
+        "Парковка" to "amenity=parking"
+    )
+
+    private val selectedCategories = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +53,11 @@ class MainActivity : AppCompatActivity() {
         Configuration.getInstance().userAgentValue = packageName
         map = binding.map
         map.setMultiTouchControls(true)
+
+        binding.selectCategoriesButton.setOnClickListener {
+            showCategorySelectionDialog()
+        }
+
         binding.calculateRouteButton.setOnClickListener {
             val start = binding.startPointInput.text.toString()
             val end = binding.endPointInput.text.toString()
@@ -46,13 +66,48 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Заполните все поля корректно", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            if (selectedCategories.isEmpty()) {
+                Toast.makeText(this, "Выберите хотя бы одну категорию", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             lifecycleScope.launch {
                 calculateRouteWithStops(start, end, maxDistance)
             }
         }
+
         binding.clearRouteButton.setOnClickListener {
             map.overlays.clear()
             map.invalidate()
+        }
+    }
+
+    private fun showCategorySelectionDialog() {
+        val categories = poiCategories.map { it.first }.toTypedArray()
+        val checkedItems = BooleanArray(categories.size) { i ->
+            selectedCategories.contains(poiCategories[i].first)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Выберите категории остановок")
+            .setMultiChoiceItems(categories, checkedItems) { _, which, isChecked ->
+                val category = poiCategories[which].first
+                if (isChecked) {
+                    selectedCategories.add(category)
+                } else {
+                    selectedCategories.remove(category)
+                }
+                updateSelectedCategoriesText()
+            }
+            .setPositiveButton("Готово", null)
+            .show()
+    }
+
+    private fun updateSelectedCategoriesText() {
+        binding.selectedCategoriesText.text = when {
+            selectedCategories.isEmpty() -> "Не выбрано"
+            selectedCategories.size == 1 -> "Выбрано: ${selectedCategories.first()}"
+            selectedCategories.size > 3 -> "Выбрано: ${selectedCategories.size} категорий"
+            else -> "Выбрано: ${selectedCategories.joinToString(", ")}"
         }
     }
 
@@ -89,32 +144,48 @@ class MainActivity : AppCompatActivity() {
                 finalRoute.addAll(segment)
             }
 
-            val polyline = Polyline().apply {
-                setPoints(finalRoute)
-                color = 0xFFFF0000.toInt()
-                width = 5f
-            }
-            map.overlays.add(polyline)
-
-            for (stop in stops) {
-                val marker = Marker(map)
-                marker.position = stop
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                marker.title = "Остановка"
-                map.overlays.add(marker)
+            withContext(Dispatchers.Main) {
+                drawRoute(finalRoute, stops)
             }
 
-            map.controller.setZoom(8.0)
-            map.controller.setCenter(startCoords)
-            map.invalidate()
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@MainActivity, "Ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         } finally {
             val endTime = System.currentTimeMillis()
             val elapsedTime = endTime - startTime
             Log.d("RouteCalculationTime", "Время выполнения алгоритма: ${elapsedTime} мс")
         }
+    }
+
+    private fun drawRoute(routePoints: List<GeoPoint>, stops: List<GeoPoint>) {
+        map.overlays.clear()
+
+        val polyline = Polyline().apply {
+            setPoints(routePoints)
+            color = 0xFFFF0000.toInt()
+            width = 5f
+        }
+        map.overlays.add(polyline)
+
+        stops.forEachIndexed { index, geoPoint ->
+            val marker = Marker(map).apply {
+                position = geoPoint
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                title = when (index) {
+                    0 -> "Начало"
+                    stops.size - 1 -> "Конец"
+                    else -> "Остановка ${index}"
+                }
+            }
+            map.overlays.add(marker)
+        }
+
+        map.controller.setZoom(8.0)
+        map.controller.setCenter(stops.first())
+        map.invalidate()
     }
 
     private fun interpolateGeoPoint(start: GeoPoint, end: GeoPoint, fraction: Double): GeoPoint {
@@ -123,12 +194,21 @@ class MainActivity : AppCompatActivity() {
         return GeoPoint(lat, lon)
     }
 
-
     private suspend fun getNearestPOI(location: GeoPoint, maxDistanceKm: Double): GeoPoint? = withContext(Dispatchers.IO) {
+        if (selectedCategories.isEmpty()) return@withContext null
+
         var retries = 3
         while (retries > 0) {
             try {
-                val query = "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[amenity~\"fuel|restaurant|cafe|hotel\"];out 1;"
+                val randomCategory = selectedCategories.random()
+                val categoryTag = poiCategories.first { it.first == randomCategory }.second
+
+                val query = if (categoryTag.contains("~")) {
+                    "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[$categoryTag];out 1;"
+                } else {
+                    "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[$categoryTag];out 1;"
+                }
+
                 val url = "https://overpass-api.de/api/interpreter?data=" + URLEncoder.encode(query, "UTF-8")
                 val request = Request.Builder().url(url).build()
                 val response = client.newCall(request).execute()
