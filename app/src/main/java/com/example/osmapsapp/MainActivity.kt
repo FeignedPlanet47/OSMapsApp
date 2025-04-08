@@ -127,20 +127,23 @@ class MainActivity : AppCompatActivity() {
             val totalDistance = startCoords.distanceToAsDouble(endCoords)
             val numStops = (totalDistance / threshold).toInt()
 
-            val stops = mutableListOf(startCoords)
+            val stops = mutableListOf<StopInfo>().apply {
+                add(StopInfo("Начальная точка", start, startCoords))
+            }
 
             for (i in 1..numStops) {
                 val fraction = i * threshold / totalDistance
                 val pointOnLine = interpolateGeoPoint(startCoords, endCoords, fraction)
-                val poi = getNearestPOI(pointOnLine, maxDistanceKm) ?: pointOnLine
-                stops.add(poi)
+                val poiInfo = getNearestPOI(pointOnLine, maxDistanceKm)
+                    ?: StopInfo("Точка маршрута ${i}", "Ближайшая точка на маршруте", pointOnLine)
+                stops.add(poiInfo)
             }
 
-            stops.add(endCoords)
+            stops.add(StopInfo("Конечная точка", end, endCoords))
 
             val finalRoute = mutableListOf<GeoPoint>()
             for (i in 0 until stops.size - 1) {
-                val segment = getRoute(stops[i], stops[i + 1])
+                val segment = getRoute(stops[i].point, stops[i + 1].point)
                 finalRoute.addAll(segment)
             }
 
@@ -160,7 +163,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun drawRoute(routePoints: List<GeoPoint>, stops: List<GeoPoint>) {
+    private fun drawRoute(routePoints: List<GeoPoint>, stops: List<StopInfo>) {
         map.overlays.clear()
 
         val polyline = Polyline().apply {
@@ -170,21 +173,18 @@ class MainActivity : AppCompatActivity() {
         }
         map.overlays.add(polyline)
 
-        stops.forEachIndexed { index, geoPoint ->
+        stops.forEachIndexed { index, stopInfo ->
             val marker = Marker(map).apply {
-                position = geoPoint
+                position = stopInfo.point
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                title = when (index) {
-                    0 -> "Начало"
-                    stops.size - 1 -> "Конец"
-                    else -> "Остановка ${index}"
-                }
+                title = stopInfo.name
+                snippet = stopInfo.address
             }
             map.overlays.add(marker)
         }
 
         map.controller.setZoom(8.0)
-        map.controller.setCenter(stops.first())
+        map.controller.setCenter(stops.first().point)
         map.invalidate()
     }
 
@@ -194,7 +194,7 @@ class MainActivity : AppCompatActivity() {
         return GeoPoint(lat, lon)
     }
 
-    private suspend fun getNearestPOI(location: GeoPoint, maxDistanceKm: Double): GeoPoint? = withContext(Dispatchers.IO) {
+    private suspend fun getNearestPOI(location: GeoPoint, maxDistanceKm: Double): StopInfo? = withContext(Dispatchers.IO) {
         if (selectedCategories.isEmpty()) return@withContext null
 
         var retries = 3
@@ -204,9 +204,9 @@ class MainActivity : AppCompatActivity() {
                 val categoryTag = poiCategories.first { it.first == randomCategory }.second
 
                 val query = if (categoryTag.contains("~")) {
-                    "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[$categoryTag];out 1;"
+                    "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[$categoryTag];out body;"
                 } else {
-                    "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[$categoryTag];out 1;"
+                    "[out:json];node(around:${maxDistanceKm * 1000},${location.latitude},${location.longitude})[$categoryTag];out body;"
                 }
 
                 val url = "https://overpass-api.de/api/interpreter?data=" + URLEncoder.encode(query, "UTF-8")
@@ -215,8 +215,19 @@ class MainActivity : AppCompatActivity() {
                 val body = response.body?.string() ?: return@withContext null
                 val elements = JSONObject(body).getJSONArray("elements")
                 if (elements.length() == 0) return@withContext null
+
                 val obj = elements.getJSONObject(0)
-                return@withContext GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"))
+                val poiPoint = GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"))
+
+                val name = try {
+                    obj.optJSONObject("tags")?.optString("name", randomCategory) ?: randomCategory
+                } catch (e: Exception) {
+                    randomCategory
+                }
+
+                val address = reverseGeocode(poiPoint) ?: "Адрес не определен"
+
+                return@withContext StopInfo(name, address, poiPoint)
             } catch (e: Exception) {
                 retries--
                 if (retries == 0) return@withContext null
@@ -237,6 +248,32 @@ class MainActivity : AppCompatActivity() {
         GeoPoint(obj.getDouble("lat"), obj.getDouble("lon"))
     }
 
+    private suspend fun reverseGeocode(point: GeoPoint): String? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=${point.latitude}&lon=${point.longitude}&zoom=18&addressdetails=1"
+            val request = Request.Builder().url(url).header("User-Agent", "RouteApp/1.0").build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return@withContext null
+            val obj = JSONObject(body)
+
+            val address = obj.optJSONObject("address")?.let { addr ->
+                val road = addr.optString("road", "")
+                val houseNumber = addr.optString("house_number", "")
+                val city = addr.optString("city", addr.optString("town", addr.optString("village", "")))
+
+                listOfNotNull(
+                    if (road.isNotEmpty() && houseNumber.isNotEmpty()) "$road, $houseNumber"
+                    else if (road.isNotEmpty()) road else null,
+                    if (city.isNotEmpty()) city else null
+                ).joinToString(", ")
+            } ?: obj.optString("display_name", "Адрес не определен")
+
+            return@withContext address
+        } catch (e: Exception) {
+            return@withContext null
+        }
+    }
+
     private suspend fun getRoute(start: GeoPoint, end: GeoPoint): List<GeoPoint> = withContext(Dispatchers.IO) {
         val url = "http://router.project-osrm.org/route/v1/driving/${start.longitude},${start.latitude};${end.longitude},${end.latitude}?overview=full&geometries=geojson"
         val request = Request.Builder().url(url).build()
@@ -252,4 +289,10 @@ class MainActivity : AppCompatActivity() {
         }
         list
     }
+
+    private data class StopInfo(
+        val name: String,
+        val address: String,
+        val point: GeoPoint
+    )
 }
