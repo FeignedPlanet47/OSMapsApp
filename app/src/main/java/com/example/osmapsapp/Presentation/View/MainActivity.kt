@@ -1,9 +1,11 @@
-package com.example.osmapsapp
+package com.example.osmapsapp.Presentation.View
 
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.example.osmapsapp.MainActivity2
+import com.example.osmapsapp.R
 import com.example.osmapsapp.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {

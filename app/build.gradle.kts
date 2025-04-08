@@ -1,8 +1,8 @@
-import org.jetbrains.kotlin.util.findImplementationFromInterface
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    kotlin("kapt")
+    id("dagger.hilt.android.plugin")
 }
 
 android {
@@ -42,22 +42,43 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.espresso.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    
+    // Maps
     implementation(libs.osmdroid.android)
-    implementation (libs.retrofit)
-    implementation (libs.converter.gson)
+    
+    // Network
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
     implementation(libs.okhttp)
-    implementation(libs.kotlinx.coroutines.android)
     implementation(libs.logging.interceptor)
-    implementation(libs.slf4j.android)
+    
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.core)
+    
+    // Lifecycle
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.livedata.ktx)
+    
+    // JSON
+    implementation(libs.gson)
+    
+    // Hilt
+    implementation(libs.hilt.android.v251)
+    kapt(libs.hilt.compiler.v251)
+    
+    // Location services
     implementation(libs.play.services.location)
-    implementation (libs.kotlinx.coroutines.core)
+    
+    // Other
+    implementation(libs.slf4j.android)
 }

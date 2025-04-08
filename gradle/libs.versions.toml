@@ -1,5 +1,19 @@
 [versions]
+activityKtx = "1.10.1"
 agp = "8.8.0"
+android = "2.17.0"
+androidVersion = "10.14.1"
+appcompatVersion = "1.6.1"
+comMapboxMapboxsdkMapboxAndroidSdk4 = "9.7.1"
+common = "21.0.0"
+constraintlayoutVersion = "2.1.4"
+coreKtxVersion = "1.12.0"
+gson = "2.10.1"
+hiltAndroid = "2.48"
+hiltAndroidVersion = "2.51"
+hiltCompiler = "2.44"
+hiltCompilerVersion = "2.51"
+jetbrainsKotlinxCoroutinesAndroid = "1.6.4"
 kotlin = "1.9.24"
 coreKtx = "1.15.0"
 junit = "4.13.2"
@@ -8,9 +22,15 @@ espressoCore = "3.6.1"
 appcompat = "1.7.0"
 kotlinxCoroutinesAndroid = "1.8.0"
 kotlinxCoroutinesAndroidVersion = "1.6.0"
+kotlinxCoroutinesCore = "1.6.4"
+lifecycleLivedataKtx = "2.9.0"
+loggingInterceptor = "4.10.0"
+mapboxAndroidNavigationUi = "0.42.6"
+mapboxSdkServices = "5.8.0"
 material = "1.12.0"
 activity = "1.10.0"
 constraintlayout = "2.2.0"
+materialVersion = "1.11.0"
 okhttp = "4.9.3"
 osmbonuspack = "6.9.0"
 osmdroidAndroid = "6.1.16"
@@ -22,19 +42,43 @@ retrofit = "2.9.0"
 slf4jAndroid = "1.7.36"
 
 [libraries]
+android = { module = "com.mapbox.navigation:android", version.ref = "android" }
+androidx-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activityKtx" }
+androidx-appcompat-v161 = { module = "androidx.appcompat:appcompat", version.ref = "appcompatVersion" }
+androidx-constraintlayout-v214 = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayoutVersion" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-core-ktx-v1120 = { module = "androidx.core:core-ktx", version.ref = "coreKtxVersion" }
+androidx-lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "lifecycleLivedataKtx" }
+androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycleLivedataKtx" }
+com-mapbox-mapboxsdk-mapbox-android-sdk5 = { module = "com.mapbox.mapboxsdk:mapbox-android-sdk", version.ref = "comMapboxMapboxsdkMapboxAndroidSdk4" }
+common = { module = "com.mapbox.common:common", version.ref = "common" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hiltCompiler" }
+hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroid" }
+hilt-android-v248 = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroid" }
+hilt-android-v251 = { module = "com.google.dagger:hilt-android", version.ref = "hiltAndroidVersion" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompiler" }
+hilt-compiler-v251 = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompilerVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
 kotlinx-coroutines-android-v160 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroidVersion" }
+kotlinx-coroutines-android-v164 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "jetbrainsKotlinxCoroutinesAndroid" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesAndroidVersion" }
+kotlinx-coroutines-core-v164 = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutinesCore" }
 logging-interceptor = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
+logging-interceptor-v4100 = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "loggingInterceptor" }
+mapbox-android-navigation = { module = "com.mapbox.mapboxsdk:mapbox-android-navigation", version.ref = "mapboxAndroidNavigationUi" }
+mapbox-android-navigation-ui = { module = "com.mapbox.mapboxsdk:mapbox-android-navigation-ui", version.ref = "mapboxAndroidNavigationUi" }
+mapbox-sdk-services = { module = "com.mapbox.mapboxsdk:mapbox-sdk-services", version.ref = "mapboxSdkServices" }
+maps-android = { module = "com.mapbox.maps:android", version.ref = "androidVersion" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+material-v1110 = { module = "com.google.android.material:material", version.ref = "materialVersion" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 osmbonuspack = { module = "com.github.MKergall:osmbonuspack", version.ref = "osmbonuspack" }
 osmdroid-android = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroidAndroid" }

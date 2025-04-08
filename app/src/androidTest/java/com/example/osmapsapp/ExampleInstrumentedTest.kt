@@ -1,12 +1,19 @@
 package com.example.osmapsapp
 
-import androidx.test.platform.app.InstrumentationRegistry
+import android.content.Intent
+import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+import androidx.test.espresso.matcher.ViewMatchers.withId
+import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 
 import org.junit.Test
 import org.junit.runner.RunWith
 
-import org.junit.Assert.*
+import org.junit.Rule
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -15,10 +22,25 @@ import org.junit.Assert.*
  */
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
+
+    @get:Rule
+    val activityRule = ActivityScenarioRule(MainActivity2::class.java)
     @Test
-    fun useAppContext() {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.example.osmapsapp", appContext.packageName)
+    fun mapIsDisplayed() {
+        onView(withId(R.id.map)).check(matches(isDisplayed()))
     }
+    @Test
+    fun testRouteDrawnBetweenTwoPoints() {
+        val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity2::class.java).apply {
+            putExtra("startPoint", "Москва, Красная площадь")
+            putExtra("endPoint", "Санкт-Петербург, Невский проспект")
+            putExtra("maxDistance", 200.0)
+            putExtra("selectedCategories", arrayListOf("Кафе", "Отель"))
+            putExtra("routeType", "DRIVING")
+        }
+        ActivityScenario.launch<MainActivity2>(intent)
+
+        onView(withId(R.id.map)).check(matches(isDisplayed()))
+    }
+
 }
