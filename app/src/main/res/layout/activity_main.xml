@@ -1,112 +1,101 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    tools:context=".MainActivity">
 
-    <!-- Начальная точка -->
     <EditText
         android:id="@+id/startPointInput"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="16dp"
         android:hint="Начальная точка"
-        android:inputType="text"
-        android:minHeight="48dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Конечная точка -->
     <EditText
         android:id="@+id/endPointInput"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
         android:layout_marginTop="8dp"
         android:hint="Конечная точка"
-        android:inputType="text"
-        android:minHeight="48dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/startPointInput"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/startPointInput" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Максимальная дистанция -->
     <EditText
         android:id="@+id/maxDistanceInput"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
         android:layout_marginTop="8dp"
-        android:hint="Макс. дистанция между остановками (км)"
+        android:hint="Макс. расстояние между остановками (км)"
         android:inputType="numberDecimal"
-        android:minHeight="48dp"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/endPointInput"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/endPointInput" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- Кнопка выбора категорий -->
+    <TextView
+        android:id="@+id/routeTypeLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Тип маршрута:"
+        app:layout_constraintTop_toBottomOf="@id/maxDistanceInput"
+        app:layout_constraintStart_toStartOf="parent"/>
+
+    <RadioGroup
+        android:id="@+id/routeTypeRadioGroup"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/routeTypeLabel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+        <RadioButton android:id="@+id/carRouteRadio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Авто"/>
+        <RadioButton android:id="@+id/bikeRouteRadio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Велосипед"/>
+        <RadioButton android:id="@+id/footRouteRadio" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Пешком"/>
+    </RadioGroup>
+
     <Button
         android:id="@+id/selectCategoriesButton"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="12dp"
-        android:text="Выбрать категории остановок"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="8dp"
+        android:text="Выбрать категории POI"
+        app:layout_constraintTop_toBottomOf="@id/routeTypeRadioGroup"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/maxDistanceInput" />
+        app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- Текст выбранных категорий -->
     <TextView
         android:id="@+id/selectedCategoriesText"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="4dp"
-        android:text="Не выбрано"
-        android:textColor="#666666"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/selectCategoriesButton" />
-
-    <!-- Кнопка расчета маршрута -->
-    <Button
-        android:id="@+id/calculateRouteButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="12dp"
-        android:text="Рассчитать маршрут"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/selectedCategoriesText" />
-
-    <!-- Кнопка очистки маршрута -->
-    <Button
-        android:id="@+id/clearRouteButton"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
         android:layout_marginTop="8dp"
-        android:text="Очистить маршрут"
-        app:layout_constraintEnd_toEndOf="parent"
+        android:text="Категории: не выбрано"
+        app:layout_constraintTop_toBottomOf="@id/selectCategoriesButton"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/calculateRouteButton" />
+        app:layout_constraintEnd_toEndOf="parent"/>
 
-    <!-- Карта -->
-    <org.osmdroid.views.MapView
-        android:id="@+id/map"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+    <ProgressBar
+        android:id="@+id/categoriesProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/selectedCategoriesText"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/clearRouteButton" />
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+
+    <Button
+        android:id="@+id/goToRouteButton"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Построить маршрут"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

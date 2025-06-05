@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.util.findImplementationFromInterface
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    kotlin("kapt")
 }
 
 android {
@@ -48,6 +49,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.espresso.core)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -60,4 +62,13 @@ dependencies {
     implementation(libs.slf4j.android)
     implementation(libs.play.services.location)
     implementation (libs.kotlinx.coroutines.core)
+    implementation (libs.play.services.location)
+    implementation (libs.retrofit)
+    implementation (libs.converter.gson)
+    implementation (libs.androidx.lifecycle.viewmodel.ktx)
+    implementation (libs.androidx.lifecycle.livedata.ktx)
+    implementation (libs.osmdroid.android)
+    implementation (libs.gson)
+    implementation (libs.hilt.android.v251)
+    kapt (libs.hilt.compiler.v251)
 }
